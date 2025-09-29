@@ -1,0 +1,143 @@
+---
+title: "Tugas TPG Pertemuan 6"
+author: "DIANI RARAS PUSPITA"
+date: "2025-09-29"
+output: html_document
+---
+
+## 2. Perbandingan Dua Vektor Nilai Tengah Sampel Berpasangan
+
+### Input Data (Simulasi)
+
+```{r}
+library(MASS)
+set.seed(123)
+
+n <- 15 # jumlah hari pengamatan
+# Data Restoran A (penjualan cenderung lebih tinggi)
+mu_A <- c(120, 80) # rata-rata penjualan makanan dan minuman
+Sigma <- matrix(c(200, 60, 60, 150), 2) # matriks kovariansi
+data_A <- mvrnorm(n, mu = mu_A, Sigma = Sigma)
+
+# Data Restoran B (lebih rendah)
+mu_B <- c(110, 70)
+data_B <- mvrnorm(n, mu = mu_B, Sigma = Sigma)
+
+dataset <- data.frame(
+  Makanan_A = data_A[,1],
+  Minuman_A = data_A[,2],
+  Makanan_B = data_B[,1],
+  Minuman_B = data_B[,2]
+)
+
+dataset
+```
+
+### Menghitung Selisih Penjualan
+
+```{r}
+d_makanan = dataset$Makanan_A - dataset$Makanan_B
+d_minuman = dataset$Minuman_A - dataset$Minuman_B
+
+X = data.frame(d_makanan, d_minuman)
+```
+
+### Menghitung vektor rataan dan matriks kovarians
+
+```{r}
+xbar = apply(X, 2, mean)
+xbar
+
+cov_m = cov(X)
+cov_m
+
+```
+### Uji T² Hotelling Dua Populasi Sampel Berpasangan
+
+```{r}
+library(MVTests)
+mean0 = c(0,0)
+result = OneSampleHT2(X, mu0 = mean0, alpha = 0.05)
+summary(result)
+```
+
+### Selang Kepercayaan Simultan
+
+```{r}
+result$CI
+```
+
+### Selang Kepercayaan Bonferroni
+```{r}
+bon = function(mu, S, n, alpha, k){
+  p = length(mu)
+  lower = mu[k] - sqrt(S[k,k]/n) * abs(qt(alpha/(2*p), df=n-1))
+  upper = mu[k] + sqrt(S[k,k]/n) * abs(qt(alpha/(2*p), df=n-1))
+  c(lower = lower, upper = upper)
+}
+
+n = nrow(X)
+# Makanan
+bon(xbar, cov_m, n, 0.05, 1)
+
+# Minuman
+bon(xbar, cov_m, n, 0.05, 2)
+
+```
+### Kesimpulan
+Berdasarkan hasil analisis uji vektor rataan dua populasi dengan sampel berpasangan, diperoleh selang kepercayaan Bonferroni untuk selisih penjualan makanan sebesar *[−2.94, 23.04]* dan untuk selisih penjualan minuman sebesar *[4.52, 23.31]*. Selang kepercayaan untuk penjualan makanan masih mencakup nilai nol, sehingga dapat disimpulkan bahwa tidak terdapat perbedaan yang signifikan pada rata-rata penjualan makanan antara Restoran A dan Restoran B pada taraf kepercayaan 95%. Sebaliknya, selang kepercayaan untuk penjualan minuman seluruhnya berada di atas nol, yang berarti terdapat perbedaan rata-rata penjualan minuman yang signifikan antara kedua restoran. Dengan demikian, dapat disimpulkan bahwa Restoran A secara signifikan memiliki rata-rata penjualan minuman yang lebih tinggi dibandingkan Restoran B, sementara rata-rata penjualan makanannya relatif sama.
+
+## 3. Perbandingan Dua Vektor Nilai Tengah Sampel Saling Bebas Ragam Sama
+
+```{r}
+# Misalnya kita pisahkan data menjadi dua kelompok
+data_A = data.frame(Makanan = dataset$Makanan_A, Minuman = dataset$Minuman_A)
+data_B = data.frame(Makanan = dataset$Makanan_B, Minuman = dataset$Minuman_B)
+
+xbar1 = apply(data_A, 2, mean)
+xbar2 = apply(data_B, 2, mean)
+
+cov_m1 = cov(data_A)
+cov_m2 = cov(data_B)
+
+n1 = nrow(data_A)
+n2 = nrow(data_B)
+
+# Matriks kovariansi gabungan
+s_gab = ((n1-1)*cov_m1 + (n2-1)*cov_m2) / (n1+n2-2)
+s_gab
+
+```
+
+### Uji T² Hotelling Dua Populasi Sampel Saling Bebas Ragam Sama
+
+```{r}
+library(Hotelling)
+t2_homogen = hotelling.test(data_A, data_B, var.equal=TRUE)
+t2_homogen
+
+```
+
+### Selang Kepercayaan Bonferroni
+
+```{r}
+bon_indep = function(mu1, mu2, S, n1, n2, alpha, k){
+  p = length(mu1)
+  mu = mu1 - mu2
+  lower = mu[k] - sqrt((S[k,k])*(1/n1+1/n2)) * abs(qt(alpha/(2*p), df=n1+n2-2))
+  upper = mu[k] + sqrt((S[k,k])*(1/n1+1/n2)) * abs(qt(alpha/(2*p), df=n1+n2-2))
+  ci = c(lower=lower, upper=upper)
+  ci
+}
+
+# Makanan
+bon_indep(xbar1, xbar2, s_gab, n1, n2, 0.05, 1)
+
+# Minuman
+bon_indep(xbar1, xbar2, s_gab, n1, n2, 0.05, 2)
+
+```
+
+### Kesimpulan
+
+Berdasarkan hasil analisis uji vektor rataan dua populasi dengan sampel saling bebas dan asumsi ragam sama, diperoleh selang kepercayaan Bonferroni untuk selisih penjualan makanan sebesar *[−1.99, 22.09]* dan untuk selisih penjualan minuman sebesar *[5.97, 21.86]*. Selang kepercayaan untuk penjualan makanan mencakup nilai nol, sehingga dapat disimpulkan bahwa tidak terdapat perbedaan yang signifikan pada rata-rata penjualan makanan antara Restoran A dan Restoran B pada taraf kepercayaan 95%. Sebaliknya, selang kepercayaan untuk penjualan minuman seluruhnya berada di atas nol, yang berarti terdapat perbedaan rata-rata penjualan minuman yang signifikan antara kedua restoran. Dengan demikian, dapat disimpulkan bahwa Restoran A secara signifikan memiliki rata-rata penjualan minuman yang lebih tinggi dibandingkan Restoran B, sedangkan rata-rata penjualan makanannya relatif sama.
