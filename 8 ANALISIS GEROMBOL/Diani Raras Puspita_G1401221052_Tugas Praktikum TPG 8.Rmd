@@ -1,0 +1,120 @@
+---
+title: "TPG 8"
+author: "DIANI RARAS PUSPITA"
+date: "2025-11-02"
+output: html_document
+---
+
+## Persiapan
+```{r}
+rm(list = ls())
+options(stringsAsFactors = FALSE)
+```
+
+```{r}
+packages <- c("readxl", "dplyr", "tidyr", "cluster", "factoextra", 
+              "NbClust", "fpc", "mclust", "ggplot2")
+
+install_if_missing <- function(pkgs){
+  to_install <- pkgs[!(pkgs %in% installed.packages()[, "Package"])]
+  if(length(to_install)) install.packages(to_install)
+}
+install_if_missing(packages)
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(cluster)
+library(factoextra)
+library(NbClust)
+library(fpc)
+library(mclust)
+library(ggplot2)
+```
+
+## Import Data
+```{r}
+data <- read_excel("C:/Users/VIVOBOOK ASUS/Documents/DATA STUNTING KOTA BOGOR 2.xlsx")
+```
+Data yang digunakan merupakan Data Anak Stunting Kota Bogor Tahun 2025.
+
+## Cek Struktur Data
+```{r}
+str(data)
+```
+
+## Memastikan Kolom Numerik
+```{r}
+# Pastikan kolom numerik benar-benar dibaca sebagai angka
+data <- data %>%
+  mutate(
+    Berat = as.numeric(Berat),
+    Tinggi = as.numeric(Tinggi),
+    `ZS BB/U` = as.numeric(`ZS BB/U`),
+    `ZS TB/U` = as.numeric(`ZS TB/U`),
+    `ZS BB/TB` = as.numeric(`ZS BB/TB`)
+  )
+```
+
+## pilih Variabel Numerik untuk Analisis
+```{r}
+data_num <- data %>% 
+  select(Berat, Tinggi, `ZS BB/U`, `ZS TB/U`, `ZS BB/TB`) %>% 
+  na.omit()
+```
+
+## Standarisasi Data
+```{r}
+data_scaled <- scale(data_num)
+```
+
+## HIERARCHICAL CLUSTERING
+```{r}
+dist_mat <- dist(data_scaled, method = "euclidean")
+hc <- hclust(dist_mat, method = "ward.D2")
+
+# Plot dendrogram
+plot(hc, main = "Dendrogram - Hierarchical Clustering", xlab = "", ylab = "Jarak")
+
+# Misal kita potong jadi 3 cluster
+hc_clusters <- cutree(hc, k = 3)
+fviz_cluster(list(data = data_scaled, cluster = hc_clusters), 
+             geom = "point", ellipse.type = "convex", 
+             main = "Hasil Hierarchical Clustering")
+```
+Berdasarkan hasil analisis hierarchical clustering pada data stunting Kota Bogor, dendrogram menunjukkan bahwa data responden dapat dikelompokkan menjadi tiga cluster utama. Pemotongan pada tiga cabang besar dilakukan karena pada titik tersebut terdapat jarak yang cukup jauh antar kelompok, menandakan adanya perbedaan karakteristik yang signifikan. Setiap cabang pada dendrogram merepresentasikan kemiripan karakteristik antar individu berdasarkan variabel numerik seperti berat badan, tinggi badan, serta nilai Z-score gizi. Semakin dekat posisi individu pada dendrogram, semakin mirip karakteristik status gizinya.
+
+Visualisasi hasil pengelompokan menunjukkan bahwa ketiga cluster memiliki persebaran yang cukup jelas meskipun ada sedikit tumpang tindih antar batas kelompok. Cluster pertama (merah) umumnya berisi anak-anak dengan kondisi gizi relatif baik dan ukuran tubuh mendekati normal, sedangkan cluster kedua (hijau) cenderung berisi anak dengan kondisi gizi sedang, dan cluster ketiga (biru) menggambarkan kelompok dengan status gizi kurang dan tinggi badan lebih rendah. Hasil ini mengindikasikan bahwa metode hierarchical clustering berhasil memetakan variasi kondisi gizi balita di Kota Bogor menjadi beberapa kelompok dengan karakteristik yang berbeda, yang dapat digunakan sebagai dasar dalam menentukan prioritas intervensi gizi di masing-masing kelompok.
+
+## K-MEANS CLUSTERING
+```{r}
+set.seed(123)
+kmeans_result <- kmeans(data_scaled, centers = 3, nstart = 25)
+fviz_cluster(kmeans_result, data = data_scaled, main = "K-Means Clustering")
+```
+
+Berdasarkan hasil analisis K-Means Clustering, data stunting di Kota Bogor terbagi menjadi tiga kelompok utama yang memiliki karakteristik berbeda satu sama lain. Sebaran titik pada plot menunjukkan bahwa setiap cluster cukup terpisah dengan batas yang jelas, meskipun terdapat area tumpang tindih kecil di antara kelompok dua dan tiga. Cluster pertama (merah) cenderung mewakili anak dengan kondisi gizi lebih baik, berat dan tinggi badan lebih mendekati normal, sedangkan cluster kedua (hijau) menggambarkan anak dengan status gizi sedang atau dalam ambang batas risiko stunting. Sementara itu, cluster ketiga (biru) terdiri dari anak dengan nilai Z-score rendah, yang mengindikasikan adanya permasalahan gizi serius seperti berat badan dan tinggi badan di bawah standar. Hasil ini menunjukkan bahwa metode K-Means efektif dalam mengelompokkan individu berdasarkan kesamaan karakteristik fisik dan status gizi, sehingga dapat menjadi dasar dalam menentukan strategi intervensi kesehatan yang lebih tepat sasaran.
+
+## K-MEDOIDS CLUSTERING (PAM)
+```{r}
+pam_result <- pam(data_scaled, k = 3)
+fviz_cluster(pam_result, geom = "point", main = "K-Medoids (PAM) Clustering")
+```
+Berdasarkan hasil analisis K-Medoids (PAM) Clustering, data stunting di Kota Bogor terbagi menjadi tiga kelompok utama yang relatif terpisah dengan batas yang lebih tegas dibandingkan metode K-Means. Setiap cluster memiliki karakteristik gizi yang berbeda, di mana cluster pertama (merah) menunjukkan kelompok anak dengan kondisi gizi baik, cluster kedua (hijau) mewakili anak dengan status gizi sedang atau berisiko stunting, dan cluster ketiga (biru) menggambarkan kelompok dengan kondisi gizi kurang atau stunting berat. Metode K-Medoids cenderung lebih stabil terhadap data ekstrem atau outlier karena menggunakan medoid sebagai pusat cluster, bukan rata-rata. Oleh karena itu, hasil pengelompokan ini dapat dikatakan lebih representatif terhadap variasi nyata di lapangan dan dapat membantu dalam penyusunan program intervensi gizi yang lebih akurat untuk tiap kelompok kondisi anak.
+
+## RINGKASAN HASIL
+```{r}
+cat("\n=== Hasil Hierarchical Clustering ===\n")
+print(table(hc_clusters))
+
+cat("\n=== Hasil K-Means ===\n")
+print(kmeans_result$size)
+
+cat("\n=== Hasil K-Medoids ===\n")
+print(pam_result$clusinfo)
+```
+Hasil analisis klaster menunjukkan bahwa ketiga metode (Hierarchical, K-Means, dan K-Medoids) sama-sama membagi data menjadi tiga kelompok utama dengan ukuran klaster yang relatif seimbang. Pada metode Hierarchical, jumlah anggota tiap klaster adalah 468, 497, dan 560, sementara pada K-Means berjumlah 397, 629, dan 499, yang menunjukkan variasi distribusi antar klaster namun tetap proporsional. Sementara itu, hasil K-Medoids memberikan informasi tambahan mengenai kualitas klaster, di mana nilai *average dissimilarity* berkisar antara 1.36–1.79 dan *diameter* sekitar 8.8–11.2, yang menandakan adanya tingkat perbedaan sedang di dalam tiap klaster. Secara keseluruhan, hasil ini menunjukkan bahwa pembagian klaster cukup stabil dan setiap metode mengelompokkan data dengan pola yang mirip, meskipun terdapat sedikit perbedaan ukuran antar kelompok.
+
+## Kesimpulan Akhir
+
+Berdasarkan hasil analisis klaster terhadap data anak stunting di Kota Bogor, ketiga metode (Hierarchical, K-Means, dan K-Medoids) sama-sama menunjukkan bahwa seluruh anak yang mengalami stunting dapat dikelompokkan menjadi tiga klaster utama dengan tingkat keparahan yang berbeda. Perbedaan ukuran tiap klaster menggambarkan adanya variasi kondisi stunting di lapangan, mulai dari anak dengan stunting berat yang memerlukan penanganan segera, anak dengan stunting sedang, hingga anak dengan kondisi stunting ringan yang berpotensi pulih dengan intervensi gizi dan kesehatan yang tepat. Nilai dissimilarity yang sedang pada metode K-Medoids menandakan bahwa pola kondisi anak-anak stunting di Kota Bogor cukup serupa, namun tetap terdapat kelompok yang lebih rentan dibanding lainnya. Secara keseluruhan, hasil ini dapat menjadi dasar bagi pemerintah daerah untuk menyusun strategi penanganan yang lebih terarah, dengan memberikan prioritas pada kelompok anak stunting yang paling berat agar upaya perbaikan gizi dan tumbuh kembang anak di Kota Bogor menjadi lebih efektif.
